@@ -118,5 +118,5 @@ TEST(ControllerTest, DifferentRatesProduceIdenticalStateAtSameTick)
     EXPECT_EQ(normalPipeline.Contexts.size(), compressedPipeline.Contexts.size());
 }
 
-} // namespace
-} // namespace UnrealVoxelSim::Simulation::FixedStep
+}
+}
