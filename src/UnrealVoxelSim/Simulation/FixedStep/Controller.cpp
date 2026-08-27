@@ -37,60 +37,60 @@ Controller::Controller(Api::ITickPipeline &pipeline, const Api::StepDuration dur
     {
         throw std::invalid_argument{"A fixed simulation step must have a positive duration."};
     }
-    Impl_ = std::make_unique<Impl>(pipeline, duration);
+    m_Impl = std::make_unique<Impl>(pipeline, duration);
 }
 
 Controller::~Controller() = default;
 
 Api::TickIndex Controller::CurrentTick() const noexcept
 {
-    Impl_->AssertOwnerThread();
-    return Impl_->Tick;
+    m_Impl->AssertOwnerThread();
+    return m_Impl->Tick;
 }
 
 std::expected<void, Api::StepError> Controller::Step(const Api::TickCount count)
 {
-    Impl_->AssertOwnerThread();
+    m_Impl->AssertOwnerThread();
     const auto maximum = std::numeric_limits<std::uint64_t>::max();
-    if (count.Value() > maximum - Impl_->Tick.Value())
+    if (count.Value() > maximum - m_Impl->Tick.Value())
     {
         return std::unexpected{Api::StepError::TickOverflow};
     }
 
     for (std::uint64_t index = 0; index < count.Value(); ++index)
     {
-        Impl_->Pipeline.Step(Api::StepContext{Impl_->Tick, Impl_->Duration});
-        Impl_->Tick.Advance();
+        m_Impl->Pipeline.Step(Api::StepContext{m_Impl->Tick, m_Impl->Duration});
+        m_Impl->Tick.Advance();
     }
     return {};
 }
 
 Api::Rate Controller::CurrentRate() const noexcept
 {
-    Impl_->AssertOwnerThread();
-    return Impl_->Rate;
+    m_Impl->AssertOwnerThread();
+    return m_Impl->Rate;
 }
 
 void Controller::SetRate(const Api::Rate rate) noexcept
 {
-    Impl_->AssertOwnerThread();
-    const auto oldDenominator = static_cast<std::uint64_t>(Impl_->Rate.Denominator());
+    m_Impl->AssertOwnerThread();
+    const auto oldDenominator = static_cast<std::uint64_t>(m_Impl->Rate.Denominator());
     const auto newDenominator = static_cast<std::uint64_t>(rate.Denominator());
-    Impl_->RateRemainder = Impl_->RateRemainder * newDenominator / oldDenominator;
-    Impl_->Rate = rate;
+    m_Impl->RateRemainder = m_Impl->RateRemainder * newDenominator / oldDenominator;
+    m_Impl->Rate = rate;
 }
 
 std::expected<Api::AdvanceResult, Api::AdvanceError> Controller::Advance(const std::chrono::nanoseconds elapsed,
                                                                          const Api::TickCount maximumTicks)
 {
-    Impl_->AssertOwnerThread();
+    m_Impl->AssertOwnerThread();
     if (elapsed.count() < 0)
     {
         return std::unexpected{Api::AdvanceError::NegativeElapsedTime};
     }
 
-    const auto denominator = static_cast<std::uint64_t>(Impl_->Rate.Denominator());
-    const auto numerator = static_cast<std::uint64_t>(Impl_->Rate.Numerator());
+    const auto denominator = static_cast<std::uint64_t>(m_Impl->Rate.Denominator());
+    const auto numerator = static_cast<std::uint64_t>(m_Impl->Rate.Numerator());
     const auto elapsedNanoseconds = static_cast<std::uint64_t>(elapsed.count());
     const auto quotient = elapsedNanoseconds / denominator;
     const auto remainder = elapsedNanoseconds % denominator;
@@ -100,20 +100,20 @@ std::expected<Api::AdvanceResult, Api::AdvanceError> Controller::Advance(const s
     {
         return std::unexpected{Api::AdvanceError::AccumulatorOverflow};
     }
-    const auto fractionalProduct = remainder * numerator + Impl_->RateRemainder;
+    const auto fractionalProduct = remainder * numerator + m_Impl->RateRemainder;
     const auto scaledWhole = quotient * numerator + fractionalProduct / denominator;
     const auto newRemainder = fractionalProduct % denominator;
-    if (scaledWhole > Maximum - Impl_->PendingNanoseconds)
+    if (scaledWhole > Maximum - m_Impl->PendingNanoseconds)
     {
         return std::unexpected{Api::AdvanceError::AccumulatorOverflow};
     }
 
-    Impl_->PendingNanoseconds += scaledWhole;
-    Impl_->RateRemainder = newRemainder;
+    m_Impl->PendingNanoseconds += scaledWhole;
+    m_Impl->RateRemainder = newRemainder;
 
-    const auto stepNanoseconds = static_cast<std::uint64_t>(Impl_->Duration.Value().count());
-    const auto pendingTicks = Impl_->PendingNanoseconds / stepNanoseconds;
-    if (Impl_->Rate.IsPaused())
+    const auto stepNanoseconds = static_cast<std::uint64_t>(m_Impl->Duration.Value().count());
+    const auto pendingTicks = m_Impl->PendingNanoseconds / stepNanoseconds;
+    if (m_Impl->Rate.IsPaused())
     {
         return Api::AdvanceResult{Api::TickCount{}, Api::TickCount{pendingTicks}};
     }
@@ -124,9 +124,9 @@ std::expected<Api::AdvanceResult, Api::AdvanceError> Controller::Advance(const s
     {
         return std::unexpected{Api::AdvanceError::TickOverflow};
     }
-    Impl_->PendingNanoseconds -= ticksToExecute * stepNanoseconds;
+    m_Impl->PendingNanoseconds -= ticksToExecute * stepNanoseconds;
     return Api::AdvanceResult{Api::TickCount{ticksToExecute},
-                              Api::TickCount{Impl_->PendingNanoseconds / stepNanoseconds}};
+                              Api::TickCount{m_Impl->PendingNanoseconds / stepNanoseconds}};
 }
 
 } // namespace UnrealVoxelSim::Simulation::FixedStep
