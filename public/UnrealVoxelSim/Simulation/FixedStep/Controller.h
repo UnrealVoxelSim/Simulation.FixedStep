@@ -2,17 +2,22 @@
 
 #include "UnrealVoxelSim/Simulation/Api/IPacer.h"
 #include "UnrealVoxelSim/Simulation/Api/IStepper.h"
-#include "UnrealVoxelSim/Simulation/Api/ITickPipeline.h"
 #include "UnrealVoxelSim/Simulation/Api/StepDuration.h"
+#include "UnrealVoxelSim/Simulation/Api/IStepParticipant.h"
 
 #include <memory>
+
+namespace UnrealVoxelSim::Simulation::Api
+{
+	class IStepParticipant;
+}
 
 namespace UnrealVoxelSim::Simulation::FixedStep
 {
 	class Controller final : public Api::IStepper, public Api::IPacer
 	{
 	public:
-		explicit Controller(Api::ITickPipeline& pipeline, Api::StepDuration duration = Api::StandardStepDuration);
+		explicit Controller(Api::IStepParticipant& pipeline, Api::StepDuration duration = Api::StandardStepDuration);
 		~Controller() override;
 
 		Controller(const Controller&) = delete;
@@ -30,6 +35,7 @@ namespace UnrealVoxelSim::Simulation::FixedStep
 			Api::TickCount maximumTicks) override;
 
 	private:
+		// TODO Do not use PImpl pattern. See ModuleTemplate/AGENTS.md
 		class Impl;
 		std::unique_ptr<Impl> m_Impl;
 	};

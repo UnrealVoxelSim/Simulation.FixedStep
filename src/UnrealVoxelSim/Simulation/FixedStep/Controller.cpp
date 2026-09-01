@@ -6,13 +6,19 @@
 #include <limits>
 #include <stdexcept>
 #include <thread>
+#include <UnrealVoxelSim/Simulation/Api/StepContext.h>
+
+namespace UnrealVoxelSim::Simulation::Api
+{
+	class IStepParticipant;
+}
 
 namespace UnrealVoxelSim::Simulation::FixedStep
 {
 	class Controller::Impl final
 	{
 	public:
-		Impl(Api::ITickPipeline& pipeline, const Api::StepDuration duration) : Pipeline(pipeline), Duration(duration)
+		Impl(Api::IStepParticipant& pipeline, const Api::StepDuration duration) : Pipeline(pipeline), Duration(duration)
 		{
 		}
 
@@ -21,7 +27,7 @@ namespace UnrealVoxelSim::Simulation::FixedStep
 			assert(std::this_thread::get_id() == OwnerThread);
 		}
 
-		Api::ITickPipeline& Pipeline;
+		Api::IStepParticipant& Pipeline;
 		Api::StepDuration Duration;
 		Api::TickIndex Tick;
 		Api::Rate Rate{Api::NormalRate};
@@ -30,7 +36,7 @@ namespace UnrealVoxelSim::Simulation::FixedStep
 		std::thread::id OwnerThread{std::this_thread::get_id()};
 	};
 
-	Controller::Controller(Api::ITickPipeline& pipeline, const Api::StepDuration duration)
+	Controller::Controller(Api::IStepParticipant& pipeline, const Api::StepDuration duration)
 	{
 		if (!duration.IsValid())
 		{
